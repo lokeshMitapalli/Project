@@ -1,0 +1,43 @@
+import torch
+import gradio as gr
+from PIL import Image
+import numpy as np
+
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='path/to/your/fine-tuned-model.pt')
+
+def perform_detection(input_image):
+    image_array = np.array(input_image)
+    detection_results = model(image_array)
+    detection_results.render()
+    output_image = Image.fromarray(detection_results.imgs[0])
+    predictions = detection_results.pred[0]
+    bounding_boxes = predictions[:, :4].tolist()
+    confidence_scores = predictions[:, 4].tolist()
+    class_ids = predictions[:, 5].tolist()
+
+    output_data = {
+        "image": output_image,
+        "boxes": bounding_boxes,
+        "scores": confidence_scores,
+        "classes": class_ids
+    }
+    return output_data
+
+def interface_function(image):
+    result = perform_detection(image)
+    return result['image'], result['boxes'], result['scores'], result['classes']
+
+app_interface = gr.Interface(
+    fn=interface_function,
+    inputs=gr.inputs.Image(type="pil"),
+    outputs=[
+        gr.outputs.Image(type="pil"),
+        gr.outputs.JSON(label="Bounding Boxes"),
+        gr.outputs.JSON(label="Confidence Scores"),
+        gr.outputs.JSON(label="Class IDs")
+    ],
+    title="Object Detection Application",
+    description="Upload an image to identify objects, displaying bounding boxes, confidence scores, and class IDs."
+)
+
+app_interface.launch()
